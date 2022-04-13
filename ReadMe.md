@@ -1,1 +1,1 @@
-Set of various Spark programs for typical spark programmers
+Set of various Spark programs for day to day spark programs
