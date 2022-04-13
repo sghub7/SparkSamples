@@ -12,14 +12,14 @@ spark = SparkSession.builder.appName("SplineDemo").getOrCreate()
 applicants = (
     spark.read.option("header", "true")
         .option("inferschema", "true")
-        .csv("data/input/applicants_table.csv")
+        .csv("../data/input/applicants_table.csv")
 )
 applicants.createOrReplaceTempView("applicants")
 
 applicants1 = (
     spark.read.option("header", "true")
         .option("inferschema", "true")
-        .csv("data/input/applicant-1.csv")
+        .csv("../data/input/applicant-1.csv")
 )
 
 
