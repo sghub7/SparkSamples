@@ -23,9 +23,11 @@ applicants1 = (
 )
 
 
+##threshold
+threshold = 0.5  ## If there is 5% deviation across the src and target stats then mark as failed
 ## You can either provide option to select or ignore col list from the source/target
-selectCols=["id","name"]
-dropCols=["applied_limit","address","phone"]
+selectCols=["id","applied_limit"]
+dropCols=["name","address","phone"]
 
 sDF = applicants.select(*selectCols)
 # sDF.show(20,False)
@@ -33,6 +35,7 @@ sDF = applicants.select(*selectCols)
 ## Drop ignored columns
 ## Src DF
 src = applicants.drop(*dropCols)
+src.printSchema()
 # src.show(20,False)
 
 
@@ -56,6 +59,7 @@ srcArray = [src.drop("masterSegment") for src in srcArray]
 # else:
 #     srcArray = [src.where(src.masterSegment == x) for x in segments["masterSegment"]]
 srcStatsArray=[]
+# schema = 'id DOUBLE,  applied_limit DOUBLE'
 for i in srcArray:
     print("***Source Dataframes***")
     i.show()
@@ -67,6 +71,8 @@ for i in srcArray:
 
 ## target DF
 trg = applicants1.drop(*dropCols)
+print("**************")
+trg.printSchema()
 trg=trg.withColumn("masterSegment",concat_ws('||',*grpByCols))
 trgsegments = trg.select("masterSegment").distinct().toPandas().to_dict(orient='list')
 print(trgsegments)
@@ -103,7 +109,7 @@ for index,i in enumerate(trgArray):
     ## 
     """
 
-    mismatches = [when(srcStatsArray[index][c]!=trg_stats["xx_target_"+c], lit(c)).otherwise("") for c in srcStatsArray[index].columns if c != 'summary']
+    mismatches = [when( ( (trg_stats["xx_target_"+c]) > threshold * srcStatsArray[index][c] + srcStatsArray[index][c] ) | ( (trg_stats["xx_target_"+c]) < srcStatsArray[index][c]  - threshold * srcStatsArray[index][c]  )  , lit(c)).otherwise("") for c in srcStatsArray[index].columns if c != 'summary']
 
     # ## Create a new col with name mismatched_columns to store the list of mismatched column
     ## summary is the column name on which teh dfs will be joind to compare
@@ -128,6 +134,15 @@ for index,i in enumerate(trgArray):
     masterStatus.append({"segment_index":index,"segment_result":result,"details":compareDict})
 
 print(masterStatus)
+## Render Status Data in readable format
+for i in masterStatus:
+    print(i["details"])
+    import pandas as pd
+    pd.set_option('display.max_rows', 500)
+    pd.set_option('display.max_columns', 500)
+    pd.set_option('display.width', 1000)
+    print(pd.DataFrame(i["details"]).head())
+
 """
 Sample output - 
 [{'segment_index': 0, 'segment_result': 'Fail', 'details': {'summary': {0: 'count', 1: 'mean', 2: 'stddev', 3: 'min', 4: 'max'}, 'id': {0: '2', 1: '10.5', 2: '13.435028842544403', 3: '1', 4: '20'}, 'name': {0: '2', 1: None, 2: None, 3: 'User1', 4: 'User2'}, 'segment1': {0: '2', 1: None, 2: None, 3: 'SU', 4: 'SU'}, 'segment2': {0: '2', 1: None, 2: None, 3: 'S1', 4: 'S1'}, 'xx_target_id': {0: '2', 1: '1.5', 2: '0.7071067811865476', 3: '1', 4: '2'}, 'xx_target_name': {0: '2', 1: None, 2: None, 3: 'User1', 4: 'User2'}, 'xx_target_segment1': {0: '2', 1: None, 2: None, 3: 'SU', 4: 'SU'}, 'xx_target_segment2': {0: '2', 1: None, 2: None, 3: 'S1', 4: 'S1'}, 'mismatched_columns': {0: [], 1: ['id'], 2: ['id'], 3: [], 4: ['id']}}}, {'segment_index': 1, 'segment_result': 'Pass', 'details': {'summary': {0: 'count', 1: 'mean', 2: 'stddev', 3: 'min', 4: 'max'}, 'id': {0: '1', 1: '50.0', 2: None, 3: '50', 4: '50'}, 'name': {0: '1', 1: None, 2: None, 3: 'User5', 4: 'User5'}, 'segment1': {0: '1', 1: None, 2: None, 3: 'SU', 4: 'SU'}, 'segment2': {0: '1', 1: None, 2: None, 3: 'S2', 4: 'S2'}, 'xx_target_id': {0: '1', 1: '50.0', 2: None, 3: '50', 4: '50'}, 'xx_target_name': {0: '1', 1: None, 2: None, 3: 'User5', 4: 'User5'}, 'xx_target_segment1': {0: '1', 1: None, 2: None, 3: 'SU', 4: 'SU'}, 'xx_target_segment2': {0: '1', 1: None, 2: None, 3: 'S2', 4: 'S2'}, 'mismatched_columns': {0: [], 1: [], 2: [], 3: [], 4: []}}}, {'segment_index': 2, 'segment_result': 'Pass', 'details': {'summary': {0: 'count', 1: 'mean', 2: 'stddev', 3: 'min', 4: 'max'}, 'id': {0: '1', 1: '30.0', 2: None, 3: '30', 4: '30'}, 'name': {0: '1', 1: None, 2: None, 3: 'User3', 4: 'User3'}, 'segment1': {0: '1', 1: None, 2: None, 3: 'DU', 4: 'DU'}, 'segment2': {0: '1', 1: None, 2: None, 3: 'D1', 4: 'D1'}, 'xx_target_id': {0: '1', 1: '30.0', 2: None, 3: '30', 4: '30'}, 'xx_target_name': {0: '1', 1: None, 2: None, 3: 'User3', 4: 'User3'}, 'xx_target_segment1': {0: '1', 1: None, 2: None, 3: 'DU', 4: 'DU'}, 'xx_target_segment2': {0: '1', 1: None, 2: None, 3: 'D1', 4: 'D1'}, 'mismatched_columns': {0: [], 1: [], 2: [], 3: [], 4: []}}}, {'segment_index': 3, 'segment_result': 'Fail', 'details': {'summary': {0: 'count', 1: 'mean', 2: 'stddev', 3: 'min', 4: 'max'}, 'id': {0: '1', 1: '40.0', 2: None, 3: '40', 4: '40'}, 'name': {0: '1', 1: None, 2: None, 3: 'User4', 4: 'User4'}, 'segment1': {0: '1', 1: None, 2: None, 3: 'DU', 4: 'DU'}, 'segment2': {0: '1', 1: None, 2: None, 3: 'D2', 4: 'D2'}, 'xx_target_id': {0: '1', 1: '4.0', 2: None, 3: '4', 4: '4'}, 'xx_target_name': {0: '1', 1: None, 2: None, 3: 'User4', 4: 'User4'}, 'xx_target_segment1': {0: '1', 1: None, 2: None, 3: 'DU', 4: 'DU'}, 'xx_target_segment2': {0: '1', 1: None, 2: None, 3: 'D2', 4: 'D2'}, 'mismatched_columns': {0: [], 1: ['id'], 2: [], 3: ['id'], 4: ['id']}}}]
