@@ -1,6 +1,6 @@
-id,name,applied_limit,address,phone
-1,User1,10000,A1,1
-20,User2,20000,A2,2
-30,User3,20000,A3,3
-40,User4,9000,A4,4
-50,User5,15000,A5,5
+id,name,applied_limit,address,phone,segment1,segment2
+1,User1,10000,A1,1,SU,S1
+2,User2,20000,A2,2,SU,S1
+30,User3,20000,A3,3,DU,D1
+4,User4,9000,A4,4,DU,D2
+50,User5,15000,A5,5,SU,S2
