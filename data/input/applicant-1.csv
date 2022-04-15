@@ -4,3 +4,4 @@ id,name,applied_limit,address,phone,segment1,segment2
 30,User3,20000,A3,3,DU,D1
 4,User4,9000,A4,4,DU,D2
 68,User5,17000,A5,5,SU,S2
+50,User5,15000,A5,5,SU,S3

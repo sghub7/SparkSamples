@@ -6,7 +6,7 @@ Spark demo for comparing two dataframes statistically
 
 
 #  SparkSession
-from pyspark.sql.functions import when, col, array_remove, lit, array, expr, concat_ws, size
+from pyspark.sql.functions import when, col, array_remove, lit, array, expr, concat_ws, size, first
 
 spark = SparkSession.builder.appName("SplineDemo").getOrCreate()
 
@@ -33,24 +33,28 @@ compareKeys=["name","address"]
 dropCols=["phone"]
 
 print(dropCols)
-## drop or select only the needed columns, except any columns present in sortKeys
+
 src=applicants.drop(*dropCols)
 src.show()
-## grp columns are segment columns. i.e columns which virtually segment the dataframe and we need to run stats on each segment
+## grp columns are segment columns. i.e columns which virtually segment the dataframe and we need to run comparison on each segment
 ## cannot use group by here as intent is not really to run any aggregates rather split teh df into multiple segmented df and then run teh describe command
 # grpByCols=[]## Empty list signifies no segmentation needed
 grpByCols=["segment1","segment2"]## Empty list signifies no segmentation needed
 
 ## Create a new column "masterSegment" to segment the data on
-src=src.withColumn("masterSegment",concat_ws('||',*grpByCols))
+src=src.withColumn("masterSegment",concat_ws('___',*grpByCols))
 print(" ** Added master Segment")
 src.show()
 
 segments = src.select("masterSegment").distinct().toPandas().to_dict(orient='list')
 print(segments)
 print(segments["masterSegment"])
+sortedSegments= segments["masterSegment"]
+sortedSegments.sort() ## sorting segments keys list so target and src have the same order in comparison
+print("src segments sorted - ",sortedSegments)
+
 #create list of dataframes by segments
-srcArray = [src.where(src.masterSegment == x) for x in segments["masterSegment"]]
+srcArray = [src.where(src.masterSegment == x) for x in sortedSegments]
 for i in srcArray:
     print("Source DF")
     i.show()
@@ -58,20 +62,32 @@ for i in srcArray:
 
 ## target DF
 trg = applicants1.drop(*dropCols)
-trg=trg.withColumn("masterSegment",concat_ws('||',*grpByCols))
+trg=trg.withColumn("masterSegment",concat_ws('___',*grpByCols))
 trgsegments = trg.select("masterSegment").distinct().toPandas().to_dict(orient='list')
 print(trgsegments)
-print(trgsegments["masterSegment"])
+print("Target Segments - ",trgsegments["masterSegment"])
 #create list of dataframes by segments
-trgArray = [trg.where(trg.masterSegment == x) for x in trgsegments["masterSegment"]]
+## Only add the master segments which are common across target and src.. Segments which are not common across sc and target will not be compared
+commonSegments = list(set(trgsegments["masterSegment"]).intersection(set(segments["masterSegment"])))
+commonSegments.sort() ## sorting segments keys list so target and src have the same order in comparison
+print("Common Segments Sorted - ",commonSegments)
+
+trgArray = [trg.where(trg.masterSegment == x) for x in commonSegments]
 for i in trgArray:
     print("Target DF")
     i.show()
 
-if len(srcArray) != len(trgArray):
-    raise Exception(f" Source and Target number of segments dont match src == {segments}  and target ={trgsegments}")
+## If segments are added/removed  in target..
+if len(sortedSegments) != len(trgsegments["masterSegment"]):
+    print(f" Source and Target number of segments dont match src == {segments}  and target ={trgsegments}")
 
 masterStatus =[]
+compareDFs =[]
+"""
+iterate for every segment in target.
+if target has extra segments compared to source , then 
+"""
+
 for index,target in enumerate(trgArray):
     src = srcArray[index]
     print("***Target Dataframes Marked Columns***")
@@ -102,9 +118,30 @@ for index,target in enumerate(trgArray):
     # compareDF.select(size("mismatched_columns")).show()
     compareDF=compareDF.withColumn("numColsMismatch",size("mismatched_columns"))##write this s3
     compareDF.show()
-    totalMismatchRecords = compareDF.groupBy().sum("numColsMismatch").collect()
-    print("Total Mismatches - ", totalMismatchRecords[0][0])
+    compareDFs.append(compareDF)
+    # compareDF.write.mode('overwrite').parquet('compare_details')
 
+    totalMismatchRecords = compareDF.groupBy().sum("numColsMismatch").collect()
+    segmentInfo = compareDF.select(first("xx_target_masterSegment")).collect()
+    print("Total Mismatches - ", totalMismatchRecords[0][0])
+    print("Segment Info - ", segmentInfo[0][0])
+    masterStatus.append({"segmentColumns":segmentInfo[0][0],"mismatches":totalMismatchRecords[0][0]})
+
+print(masterStatus)
+
+cdf = compareDFs[0]
+for i in range(1, len(compareDFs)):
+    cdf = cdf.union(compareDFs[i])
+cdf.write.mode('overwrite').parquet('compare_details')
+
+## Reading detailed reports
+df = spark.read.parquet("compare_details")
+df.show()
+"""
+sample output - 
+[{'segmentColumns': 'SU___S1', 'mismatches': 2}, {'segmentColumns': 'SU___S2', 'mismatches': 2}, {'segmentColumns': 'DU___D1', 'mismatches': 0}, {'segmentColumns': 'DU___D2', 'mismatches': 1}]
+
+"""
 
 
 
