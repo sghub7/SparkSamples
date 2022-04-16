@@ -93,12 +93,34 @@ for index,target in enumerate(trgArray):
     print("***Target Dataframes Marked Columns***")
 
         #Prepending columns with "target_" for differentiating target and source columns
+    target.show()
     target = target.selectExpr([colName+' as xx_target_' + colName for colName in target.columns])
+    """
+    Sample Data -
+        +------------+--------------+-----------------------+-----------------+------------------+------------------+-----------------------+
+    |xx_target_id|xx_target_name|xx_target_applied_limit|xx_target_address|xx_target_segment1|xx_target_segment2|xx_target_masterSegment|
+    +------------+--------------+-----------------------+-----------------+------------------+------------------+-----------------------+
+    |           4|         User4|                   9000|               A4|                DU|                D2|                DU___D2|
+    +------------+--------------+-----------------------+-----------------+------------------+------------------+-----------------------+
+    """
+    # target.show()
+    """
+    Below loop is for renaming the compare columns names back to original names 
+    Done to make it easier to join on similar column names across src and target
+    """
     for i in compareKeys:
         target = target.withColumnRenamed(f"xx_target_{i}",i)
-    print(" Post target")
+    """
     target.show()
-    target.printSchema()
+    Sample Data 
+        +------------+-----+-----------------------+-------+------------------+------------------+-----------------------+
+    |xx_target_id| name|xx_target_applied_limit|address|xx_target_segment1|xx_target_segment2|xx_target_masterSegment|
+    +------------+-----+-----------------------+-------+------------------+------------------+-----------------------+
+    |           4|User4|                   9000|     A4|                DU|                D2|                DU___D2|
+    +------------+-----+-----------------------+-------+------------------+------------------+-----------------------+
+      
+    """
+
     mismatches = [when( ( (target["xx_target_"+c]) > threshold * src[c] + src[c] ) | ( (target["xx_target_"+c]) < src[c]  - threshold * src[c]  )  , lit(c)).otherwise("") for c in src.columns if c not in  compareKeys]
 
     # mismatches = [when( ( (target["xx_target_"+c]) != src[c]    )  , lit(c)).otherwise("") for c in src.columns if c not in  compareKeys]
