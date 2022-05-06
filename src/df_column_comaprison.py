@@ -29,13 +29,34 @@ applicants1 = (
 threshold = 0  ## If there is 5% deviation across the src and target stats then mark as failed
 ## You can either provide option to select or ignore col list from the source/target
 selectCols=["id","applied_limit"]
-compareKeys=["name","address"]
+compareKeys=[]
 dropCols=["phone"]
+
+
 
 print(dropCols)
 
 src=applicants.drop(*dropCols)
 src.show()
+###If no input passed in compareKey take all non String columns as compare Keys.
+
+if len(compareKeys)==0:
+    for field in src.schema.fields:
+        print(field.name +" , "+str(field.dataType))
+        if str(field.dataType) != "StringType":
+            compareKeys.append(field.name)
+            """ Sample ***
+                id , IntegerType
+                name , StringType
+                applied_limit , IntegerType
+                address , StringType
+                segment1 , StringType
+                segment2 , StringType"""
+
+print (compareKeys) ##['id', 'applied_limit']
+
+
+
 ## grp columns are segment columns. i.e columns which virtually segment the dataframe and we need to run comparison on each segment
 ## cannot use group by here as intent is not really to run any aggregates rather split teh df into multiple segmented df and then run teh describe command
 # grpByCols=[]## Empty list signifies no segmentation needed
