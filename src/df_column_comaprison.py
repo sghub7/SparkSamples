@@ -194,7 +194,7 @@ sample output -
 
 """
 ### custom validations
-custom = [{"name": {"value_exists":{"values":["User5","User2","User0"]},"null_count_threshold":0}}]
+custom = [{"name": {"value_exists":{"values":["User5","User2","User0"],"dist":{"User5":.10,"User2":.20,"User0":.10}},"null_count_threshold":0}}]
 
 # custom = [{"colname1": {"value_exists":["test"]}}
 #           ]
@@ -216,12 +216,16 @@ class CustomValidations:
                 print("**** values")
                 print(valueParams["values"])
                 checkValues =valueParams["values"]
+                colCount= trg.select(f"{col}").count()
+                distDict = valueParams["dist"]
+                checkValuesArray = {f"{col}":[{"value":val, "count":trg.filter(f"{col} =='{val}'").count(),"dist":(trg.filter(f"{col} =='{val}'").count())/colCount,"distCheck":"pass" if (trg.filter(f"{col} =='{val}'").count())/colCount > distDict[f"{val}"] else "Fail"} for val in checkValues]}
             else:
                 checkValues =valueParams["values"]
-                checkValuesArray = [{"value":val, "count":trg.filter(f"{col} =='{val}'").count()} for val in checkValues]
-        for i in checkValuesArray:
+                checkValuesArray = {f"{col}":[{"value":val, "count":trg.filter(f"{col} =='{val}'").count()} for val in checkValues]}
+        for k,v in checkValuesArray.items():
             print("****** count values *****")
-            print(i)
+            print(k,v)
+        print(checkValuesArray)
 
 
 
