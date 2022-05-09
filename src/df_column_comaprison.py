@@ -193,3 +193,51 @@ sample output -
 +---+-----+-------------+-------+--------+--------+-------------+------------+-----------------------+------------------+------------------+-----------------------+-------------------+---------------+
 
 """
+### custom validations
+custom = [{"name": {"value_exists":{"values":["User5","User2","User0"]},"null_count_threshold":0}}]
+
+# custom = [{"colname1": {"value_exists":["test"]}}
+#           ]
+
+class CustomValidations:
+
+    def value_exists(self,col,valueParams):
+        dist=False
+        print("value_exists --",valueParams)
+        print(" col ---",col)
+        checkValuesArray=[]
+        if "dist" in valueParams.keys():
+            print ("dist exists")
+            dist =True
+        for k,v in valueParams.items():
+            print("******")
+            print(k,v)
+            if  dist:
+                print("**** values")
+                print(valueParams["values"])
+                checkValues =valueParams["values"]
+            else:
+                checkValues =valueParams["values"]
+                checkValuesArray = [{"value":val, "count":trg.filter(f"{col} =='{val}'").count()} for val in checkValues]
+        for i in checkValuesArray:
+            print("****** count values *****")
+            print(i)
+
+
+
+
+
+    def null_count_threshold(self,col,valueParams):
+        print("null_count_threshold --",valueParams)
+
+
+
+for i in custom:
+    print("**Applying custom functions on below columns-- ")
+
+    for col,validations in i.items():
+        print("Column Name -",col)
+        print("Validations -",validations)
+        for validationFn,params in validations.items():
+            fn=getattr(CustomValidations,validationFn)
+            fn(None,col,params)
